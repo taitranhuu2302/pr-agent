@@ -13,6 +13,7 @@ from pr_agent.tools.pr_code_suggestions import PRCodeSuggestions
 from pr_agent.tools.pr_config import PRConfig
 from pr_agent.tools.pr_description import PRDescription
 from pr_agent.tools.pr_generate_labels import PRGenerateLabels
+from pr_agent.tools.pr_review_and_improve import PRReviewAndImprove
 from pr_agent.tools.pr_help_message import PRHelpMessage
 from pr_agent.tools.pr_line_questions import PR_LineQuestions
 from pr_agent.tools.pr_questions import PRQuestions
@@ -25,6 +26,8 @@ command2class = {
     "answer": PRReviewer,
     "review": PRReviewer,
     "review_pr": PRReviewer,
+    "review_and_improve": PRReviewAndImprove,
+    "review_improve": PRReviewAndImprove,
     "describe": PRDescription,
     "describe_pr": PRDescription,
     "improve": PRCodeSuggestions,

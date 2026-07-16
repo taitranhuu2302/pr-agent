@@ -102,6 +102,7 @@ class KeyIssuesComponentLink(BaseModel):
     issue_content: str = Field(description="A short and concise description of the issue, why it matters, and the specific scenario or input that triggers it. Do not mention line numbers in this field.")
     start_line: int = Field(description="The start line that corresponds to this issue in the relevant file")
     end_line: int = Field(description="The end line that corresponds to this issue in the relevant file")
+    suggestion_content: str = Field(description="A concrete, actionable suggestion for how to fix or improve this issue. Include a short code snippet (2-5 lines) showing the fix if applicable. Keep it concise.")
 
 {%- if require_todo_scan %}
 class TodoSection(BaseModel):
@@ -197,6 +198,12 @@ review:
         A hardcoded JWT signing key `"super-secret-123"` is used on line 15.
         If this code is committed, any attacker who inspects the source can forge
         arbitrary auth tokens. Use an environment variable or a secrets manager instead.
+      suggestion_content: |
+        Replace with an env var and handle missing key at startup:
+        ```python
+        import os
+        JWT_SECRET = os.environ["JWT_SECRET"]  # crash fast if not set
+        ```
       start_line: 15
       end_line: 15
     - relevant_file: |
@@ -207,6 +214,13 @@ review:
         User-supplied filenames are passed directly to `open()` on line 42 without
         sanitization. A malicious path like `../../../etc/passwd` could read or
         overwrite arbitrary files on the server.
+      suggestion_content: |
+        Use `os.path.basename()` to strip directory traversal:
+        ```python
+        from pathlib import Path
+        safe_name = Path(filename).name
+        with open(Path(UPLOAD_DIR) / safe_name, "wb") as f:
+        ```
       start_line: 40
       end_line: 45
   security_concerns: |

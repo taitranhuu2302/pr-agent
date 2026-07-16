@@ -108,6 +108,11 @@ minimal_minutes_for_incremental_review=0
 enable_intro_text=true
 enable_help_text=false # Determines whether to include help text in the PR review. Enabled by default.
 
+[pr_review_and_improve] # /review_and_improve #
+# Combined command that runs both /review and /improve, deduplicates findings, and publishes a single output.
+# Inherits all settings from [pr_reviewer] and [pr_code_suggestions].
+# No additional settings needed; the command delegates to the existing tools.
+
 [pr_description] # /describe #
 publish_labels=false
 add_original_user_description=true
