@@ -187,91 +187,22 @@ class PRReviewAndImprove:
             get_logger().info(f"Removed {removed_count} duplicate suggestions overlapping with review issues")
         return filtered
 
-    @staticmethod
-    def _get_code_context(files, relevant_file: str, start_line: int, end_line: int) -> str:
-        """Extract raw code lines from head_file for the given file and line range."""
-        if not files or not relevant_file:
-            return ""
-        try:
-            for f in files:
-                if f.filename.strip() == relevant_file:
-                    if not f.head_file:
-                        return ""
-                    lines = f.head_file.splitlines()
-                    s = max(0, (start_line or 1) - 1)
-                    e = min(len(lines), end_line or start_line or 1)
-                    return "\n".join(lines[s:e])
-        except Exception:
-            pass
-        return ""
-
-    def _build_merged_suggestions(self, review_issues: List[dict],
-                                   files, improve_suggestions: List[dict]) -> List[dict]:
-        """
-        Convert review issues to suggestion format with code context,
-        then merge with improve suggestions into one sorted list.
-        """
-        merged = []
-        for issue in review_issues:
-            if not isinstance(issue, dict):
-                continue
-
-            header_lower = issue.get('issue_header', '').strip().lower()
-            if 'security' in header_lower:
-                label = 'security'
-            elif 'bug' in header_lower:
-                label = 'possible bug'
-            else:
-                label = 'possible issue'
-
-            relevant_file = issue.get('relevant_file', '').strip()
-            start_line = issue.get('start_line', 0) or 0
-            end_line = issue.get('end_line', 0) or 0
-            issue_content = issue.get('issue_content', '').strip()
-            fix_suggestion = issue.get('suggestion_content', '').strip()
-
-            # Get real code context from PR files
-            existing_code = self._get_code_context(files, relevant_file, start_line, end_line)
-
-            # suggestion_content is the fix suggestion (short) — not the full issue paragraph
-            suggestion_content = fix_suggestion if fix_suggestion else issue_content
-
-            pseudo = {
-                'relevant_file': relevant_file,
-                'relevant_lines_start': start_line,
-                'relevant_lines_end': end_line,
-                'one_sentence_summary': issue.get('issue_header', '').strip(),
-                'suggestion_content': suggestion_content,
-                'existing_code': existing_code,
-                'improved_code': existing_code,  # same → diff shows context-only lines
-                'label': label,
-                'score': 9,
-                'score_why': issue_content,
-            }
-            merged.append(pseudo)
-
-        merged.extend(improve_suggestions)
-        return merged
-
     def _combine_outputs(self, review_data: dict, review_tool: PRReviewer,
                           suggestions: List[dict], improve_tool: PRCodeSuggestions) -> str:
-        """Format review + suggestions into a single merged markdown string."""
+        """Format review + suggestions into a single markdown string.
+
+        Review section keeps 'Recommended focus areas' with full context.
+        Suggestions table shows only deduplicated improve suggestions.
+        """
         gfm_supported = self.git_provider.is_supported("gfm_markdown")
-        files = self.git_provider.get_diff_files()
 
         review_data_copy = copy.deepcopy(review_data)
 
-        # Extract review issues and REMOVE from review section (they go in the merged table)
-        review_issues = []
-        if 'review' in review_data_copy and 'key_issues_to_review' in review_data_copy['review']:
-            review_issues = review_data_copy['review'].pop('key_issues_to_review', [])
-
-        # Render review (without key_issues_to_review)
         review_md = convert_to_markdown_v2(
             review_data_copy,
             gfm_supported=gfm_supported,
             git_provider=self.git_provider,
-            files=files
+            files=self.git_provider.get_diff_files()
         )
 
         # Convert Estimated effort from numeric+bars to text label
@@ -291,15 +222,12 @@ class PRReviewAndImprove:
         # Set review labels (effort, security) from the review data
         review_tool.set_review_labels(review_data)
 
-        # Build merged suggestions: review issues (with code context) + improve suggestions
-        merged = self._build_merged_suggestions(review_issues, files, suggestions)
-
-        # --- Merged suggestions table (review issues + improve suggestions) ---
-        if merged and improve_tool:
+        # --- Suggestions table (only deduplicated improve suggestions) ---
+        if suggestions and improve_tool:
             suggestions_md = improve_tool.generate_summarized_suggestions(
-                {'code_suggestions': merged}
+                {'code_suggestions': suggestions}
             )
-            # Remove the separate "PR Code Suggestions ✨" header
+            # Strip the default header; we add our own combined section title
             if suggestions_md.startswith("## PR Code Suggestions ✨"):
                 suggestions_md = suggestions_md[len("## PR Code Suggestions ✨\n\n"):]
             # Remove "Explore these optional code suggestions:" if present in auto mode
@@ -307,7 +235,7 @@ class PRReviewAndImprove:
                 suggestions_md = suggestions_md.replace(
                     "Explore these optional code suggestions:\n\n", ""
                 )
-            review_md += "\n\n" + suggestions_md
+            review_md += "\n\n<hr>\n\n### 💡 Code Suggestions\n\n" + suggestions_md
 
         # --- Help text ---
         if gfm_supported and get_settings().pr_reviewer.get('enable_help_text', True):
