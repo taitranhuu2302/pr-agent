@@ -25,8 +25,8 @@ pip install pr-agent
 Chạy trực tiếp CLI:
 
 ```bash
-export OPENAI_KEY=sk-...                # hoặc dùng .secrets.toml
-export GITHUB_USER_TOKEN=ghp_...        # token GitHub
+export OPENAI__KEY=sk-...               # double underscore → settings.openai.key
+export GITHUB__USER_TOKEN=ghp_...       # double underscore → settings.github.user_token
 
 pr-agent --pr_url https://github.com/owner/repo/pull/123 review
 ```
@@ -228,7 +228,7 @@ Dùng file `.secrets.toml`:
 ```toml
 [openai]
 api_base = "https://your-custom-endpoint.com/v1"
-api_key = "sk-your-api-key"
+key = "sk-your-api-key"
 ```
 
 Hoặc environment variables:
